@@ -24,24 +24,24 @@ app.options("*", cors());
 
 
 
-app.get("/api/img/:filename", (req, res) => {
-  const { filename } = req.params;
+// app.get("/api/img/:filename", (req, res) => {
+//   const { filename } = req.params;
 
-  const filePath = path.join(__dirname, "images", filename);
+//   const filePath = path.join(__dirname, "images", filename);
 
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error("File not found:", err);
-      res.status(404).json({ error: "File not found" });
-    }
-  });
-});
+//   res.sendFile(filePath, (err) => {
+//     if (err) {
+//       console.error("File not found:", err);
+//       res.status(404).json({ error: "File not found" });
+//     }
+//   });
+// });
 
-app.get("/api/docs/:filename", (req, res) => {
-  const { filename } = req.params;
-  const filePath = path.join(__dirname, "documents", filename);
-  res.sendFile(filePath);
-});
+// app.get("/api/docs/:filename", (req, res) => {
+//   const { filename } = req.params;
+//   const filePath = path.join(__dirname, "documents", filename);
+//   res.sendFile(filePath);
+// });
 
 
 
@@ -72,6 +72,9 @@ app.use((req, res, next) => {
   // console.log(req.cookies);
   next();
 });
+
+// Serve static files from /uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 //------------------------- END ----------------------------//
 

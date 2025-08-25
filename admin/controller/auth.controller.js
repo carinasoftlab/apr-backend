@@ -20,9 +20,10 @@ exports.Registration = catchAsync(async (req, res, next) => {
     block,
     department,
     position,
-    permissions,
     active,
   } = req.body;
+
+  const permissions = JSON.parse(req.body.permissions || "{}");
 
   const existingUser = await Admin.findOne({ email });
   if (existingUser) {
@@ -59,11 +60,11 @@ exports.Registration = catchAsync(async (req, res, next) => {
     docs: documents,
     createdBy: req.user.id,
     permissions: {
-      overallMonitoring: permissions?.overallMonitoring ?? false,
-      reviewSchemes: permissions?.reviewSchemes ?? false,
-      managingSubordinates: permissions?.managingSubordinates ?? false,
-      active,
+      overallMonitoring: permissions.overallMonitoring ?? false,
+      reviewSchemes: permissions.reviewSchemes ?? false,
+      managingSubordinates: permissions.managingSubordinates ?? false,
     },
+    active,
   });
 
   res.status(201).json({
@@ -71,6 +72,114 @@ exports.Registration = catchAsync(async (req, res, next) => {
     data: newAdmin,
   });
 });
+
+exports.updateAdmin = catchAsync(async (req, res, next) => {
+  const adminId = req.params.id;
+
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    passwordConfirm,
+    roleName,
+    dob,
+    gender,
+    phone,
+    designation,
+    joiningDate,
+    district,
+    block,
+    department,
+    position,
+    active,
+  } = req.body;
+
+  const permissions = JSON.parse(req.body.permissions || "{}");
+
+  // Check if email is being updated and already exists for another user
+  const existingUser = await Admin.findOne({ email, _id: { $ne: adminId } });
+  if (existingUser) {
+    return next(new AppError("Email already exists!", 409));
+  }
+
+  // Handle file uploads if new files are passed
+  let profileImagePath = undefined;
+  if (req.files?.profile_image?.length > 0) {
+    profileImagePath = req.files.profile_image[0].filename;
+  }
+
+  let documents = undefined;
+  if (req.files?.docs?.length > 0) {
+    documents = req.files.docs.map((file) => file.filename);
+  }
+
+  const updateData = {
+    firstName,
+    lastName,
+    email,
+    roleName,
+    dob,
+    gender,
+    phone,
+    designation,
+    joiningDate,
+    district,
+    block,
+    department,
+    position,
+    active,
+    permissions: {
+      overallMonitoring: permissions.overallMonitoring ?? false,
+      reviewSchemes: permissions.reviewSchemes ?? false,
+      managingSubordinates: permissions.managingSubordinates ?? false,
+    },
+  };
+
+  if (password && passwordConfirm) {
+    updateData.password = password;
+    updateData.passwordConfirm = passwordConfirm;
+  }
+
+  if (profileImagePath !== undefined) {
+    updateData.profile_image = profileImagePath;
+  }
+
+  if (documents !== undefined) {
+    updateData.docs = documents;
+  }
+
+  const updatedAdmin = await Admin.findByIdAndUpdate(adminId, updateData, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!updatedAdmin) {
+    return next(new AppError("Admin not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: updatedAdmin,
+  });
+});
+
+exports.deleteAdmin = catchAsync(async (req, res, next) => {
+  const adminId = req.params.id;
+
+  const admin = await Admin.findById(adminId);
+  if (!admin) {
+    return next(new AppError("Admin not found", 404));
+  }
+
+  await Admin.findByIdAndDelete(adminId);
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});
+
 
 exports.updateProfile = catchAsync(async (req, res, next) => {
   const adminId = req.params.id;
@@ -92,11 +201,20 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     dob,
     gender,
     joiningDate,
+    position,
+    active,
   } = req.body;
+
+  const permissions = JSON.parse(req.body.permissions || "{}");
 
   let profileImagePath = admin.profile_image;
   if (req.files?.profile_image?.length > 0) {
     profileImagePath = req.files.profile_image[0].filename;
+  }
+
+  let documents = admin.docs || [];
+  if (req.files?.docs?.length > 0) {
+    documents = req.files.docs.map((file) => file.filename);
   }
 
   admin.firstName = firstName || admin.firstName;
@@ -111,6 +229,15 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   admin.gender = gender || admin.gender;
   admin.joiningDate = joiningDate || admin.joiningDate;
   admin.profile_image = profileImagePath;
+  admin.position = position || admin.position;
+  admin.active = active ?? admin.active;
+  admin.docs = documents;
+
+  admin.permissions = {
+    overallMonitoring: permissions.overallMonitoring ?? admin.permissions?.overallMonitoring ?? false,
+    reviewSchemes: permissions.reviewSchemes ?? admin.permissions?.reviewSchemes ?? false,
+    managingSubordinates: permissions.managingSubordinates ?? admin.permissions?.managingSubordinates ?? false,
+  };
 
   await admin.save();
 
@@ -135,6 +262,7 @@ exports.registerEmployee = catchAsync(async (req, res, next) => {
     district,
     block,
     department,
+    reportingOfficer
   } = req.body;
 
   // Validate roleName is Employee
@@ -179,6 +307,7 @@ exports.registerEmployee = catchAsync(async (req, res, next) => {
     district,
     block,
     department,
+    reportingOfficer,
     profile_image: profileImagePath,
     docs: documents,
     createdBy: req.user.id,
@@ -236,7 +365,10 @@ exports.getMe = (req, res, next) => {
 
 exports.protect = helper.protect(Admin);
 exports.authenticate = helper.authenticate(Admin);
-exports.getAllUser = helper.getAll(Admin);
+exports.getAllUser = helper.getAll(Admin, {
+  path: "createdBy",
+  select: "firstName email roleName",
+});
 exports.getDataById = helper.getOne(Admin, "");
 exports.forgotPassword = helper.forgotPassword(Admin, "");
 exports.resetPassword = helper.resetPassword(Admin);

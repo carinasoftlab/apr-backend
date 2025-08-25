@@ -8,7 +8,6 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const { multerUpload } = require("../../utills/file");
 
-
 router.post("/login", authController.login);
 
 router.post(
@@ -21,6 +20,21 @@ router.post(
   authController.Registration
 );
 
+router.patch(
+  "/updateAdmin/:id",
+  authController.protect,
+  multerUpload.fields([
+    { name: "profile_image", maxCount: 1 },
+    { name: "docs", maxCount: 10 },
+  ]),
+  authController.updateAdmin
+);
+router.delete(
+  "/deleteAdmin/:id",
+  authController.protect,
+  authController.deleteAdmin
+);
+
 router.post(
   "/register-employee",
   authController.protect,
@@ -30,7 +44,6 @@ router.post(
   ]),
   authController.registerEmployee
 );
-
 
 router.get(
   "/getProfileData",
@@ -49,11 +62,13 @@ router.post(
 router.patch(
   "/update-profile",
   authController.protect,
-  multerUpload.fields([{ name: "profile_image", maxCount: 1 }]),
+  multerUpload.fields([
+    { name: "profile_image", maxCount: 1 },
+    { name: "docs", maxCount: 10 },
+  ]),
   authController.getMe,
   authController.updateProfile
 );
-
 
 // This API retrieves a list of all users who have the role of either HR, subAdmin, or Employee.
 router.get(
@@ -67,8 +82,6 @@ router.get(
   authController.protect,
   authController.getDataById
 );
-
-
 
 router.post(
   "/delete/:id",
