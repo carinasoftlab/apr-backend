@@ -4,13 +4,12 @@ const circularController = require("../../controller/aprWebsite/circular.control
 const { multerUpload } = require("../../../utills/file");
 const authController = require("../../controller/auth.controller");
 
-// Protect routes (optional)
-router.use(authController.protect);
 
 router
   .route("/circulars")
   .post(
     multerUpload.fields([{ name: "docs", maxCount: 10 }]), // multiple docs allowed
+    authController.protect,
     circularController.createCircular
   )
   .get(circularController.getAllCirculars);
@@ -20,8 +19,9 @@ router
   .get(circularController.getCircular)
   .patch(
     multerUpload.fields([{ name: "docs", maxCount: 10 }]),
+    authController.protect,
     circularController.updateCircular
   )
-  .delete(circularController.deleteCircular);
+  .delete(authController.protect, circularController.deleteCircular);
 
 module.exports = router;
