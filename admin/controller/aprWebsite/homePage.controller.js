@@ -142,6 +142,7 @@ exports.addBanner = catchAsync(async (req, res, next) => {
   if (!homePage) homePage = await HomePage.create({});
 
   const banner = req.body;
+
   if (req.files?.bannerImage?.length > 0) {
     banner.image = req.files.bannerImage[0].filename;
   }
@@ -149,7 +150,10 @@ exports.addBanner = catchAsync(async (req, res, next) => {
   homePage.banner.push(banner);
   await homePage.save();
 
-  res.status(201).json({ status: "success", data: homePage.banner });
+  // Get the last added banner
+  const newBanner = homePage.banner[homePage.banner.length - 1];
+
+  res.status(201).json({ status: "success", data: newBanner });
 });
 
 exports.editBanner = catchAsync(async (req, res, next) => {
@@ -158,7 +162,7 @@ exports.editBanner = catchAsync(async (req, res, next) => {
   const homePage = await HomePage.findOne();
   if (!homePage) return next(new AppError("HomePage not found", 404));
 
-  const banner = homePage.banner.id(bannerId); // Use Mongoose's subdoc accessor
+  const banner = homePage.banner.id(bannerId);
   if (!banner) return next(new AppError("Banner not found", 404));
 
   // Update fields individually
@@ -172,8 +176,9 @@ exports.editBanner = catchAsync(async (req, res, next) => {
 
   await homePage.save();
 
-  res.status(200).json({ status: "success", data: homePage.banner });
+  res.status(200).json({ status: "success", data: banner });
 });
+
 
 
 // Delete banner
@@ -199,8 +204,14 @@ exports.addLiveCard = catchAsync(async (req, res, next) => {
   homePage.liveDataCards.push(req.body);
   await homePage.save();
 
-  res.status(201).json({ status: "success", data: homePage.liveDataCards });
+  const newCard = homePage.liveDataCards[homePage.liveDataCards.length - 1]; // last added card
+
+  res.status(201).json({
+    status: "success",
+    data: newCard,
+  });
 });
+
 
 // Update live data card
 exports.updateLiveCard = catchAsync(async (req, res, next) => {

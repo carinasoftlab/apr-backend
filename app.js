@@ -19,6 +19,14 @@ const app = express();
 app.enable("trust proxy");
 
 app.use(cors());
+// ✅ Add here
+app.use(
+  cors({
+    origin: "*", // change to your frontend domain for security
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 app.options("*", cors());
 
@@ -74,7 +82,28 @@ app.use((req, res, next) => {
 });
 
 // Serve static files from /uploads
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS");
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept"
+    );
+
+    // 👇 Disable CORP/COEP just for uploads
+    res.removeHeader("Cross-Origin-Resource-Policy");
+    res.removeHeader("Cross-Origin-Embedder-Policy");
+
+    next();
+  },
+  express.static(path.join(__dirname, "uploads"))
+);
+
+
 
 //------------------------- END ----------------------------//
 
