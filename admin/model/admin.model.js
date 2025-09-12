@@ -18,6 +18,7 @@ const adminSchema = new mongoose.Schema(
       required: [true, "Please provide your email"],
       lowercase: true,
       validate: [validator.isEmail, "Please provide a valid email"],
+      unique: true,
     },
     profile_image: {
       type: String,
@@ -27,6 +28,10 @@ const adminSchema = new mongoose.Schema(
       type: String,
       enum: ["superAdmin", "admin", "subAdmin", "HR", "Employee"],
       required: true,
+    },
+    canEdit: {
+      type: Boolean,
+      default: false,
     },
     password: {
       type: String,

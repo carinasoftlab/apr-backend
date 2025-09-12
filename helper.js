@@ -4,10 +4,10 @@ const AppError = require("./utills/appError");
 const APIFeatures = require("./utills/apiFeatures");
 const multer = require("multer");
 const sharp = require("sharp");
-const fs = require('fs');
+const fs = require("fs");
 const { promisify } = require("util");
 const jwt = require("jsonwebtoken");
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const multerFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image")) {
@@ -29,17 +29,14 @@ const createUploadMiddleware = (fieldName) => {
 };
 
 const resizeImage = async (buffer, filename, folder) => {
-  console.log(filename, "filename")
+  console.log(filename, "filename");
   const filePath = `images/${folder}/${filename}`;
 
   if (!fs.existsSync(`images/${folder}`)) {
     fs.mkdirSync(`images/${folder}`, { recursive: true });
   }
 
-  await sharp(buffer)
-    .resize(500, 500)
-    .toFormat("png")
-    .toFile(filePath);
+  await sharp(buffer).resize(500, 500).toFormat("png").toFile(filePath);
 
   return filePath;
 };
@@ -55,14 +52,16 @@ exports.uploadAndResizeImage = (fieldName, folder) => {
       if (!req.file) return next();
 
       const fileExtension = "png";
-      req.file.filename = `${fieldName}-${req.user.id}-${Date.now()}.${fileExtension}`;
+      req.file.filename = `${fieldName}-${
+        req.user.id
+      }-${Date.now()}.${fileExtension}`;
 
       try {
         await resizeImage(req.file.buffer, req.file.filename, folder);
 
         req.body[fieldName] = `/${folder}/${req.file.filename}`;
 
-        next(); 
+        next();
       } catch (error) {
         console.error("Error processing image:", error); // Log detailed error
         return res.status(500).json({ error: "Error processing image" });
@@ -70,8 +69,6 @@ exports.uploadAndResizeImage = (fieldName, folder) => {
     });
   };
 };
-
-
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -89,7 +86,7 @@ exports.createSendToken = (data, statusCode, req, res) => {
     token,
     expiresIn: 86400,
     userId: data._id,
-    user:data
+    user: data,
   });
 };
 
@@ -120,8 +117,7 @@ exports.protect = (Model) =>
       req.headers.authorization.startsWith("Bearer")
     ) {
       token = req.headers.authorization.split(" ")[1];
-    } 
-    else if (req.cookies.jwt) {
+    } else if (req.cookies.jwt) {
       token = req.cookies.jwt;
     }
 
@@ -146,7 +142,6 @@ exports.protect = (Model) =>
       );
     }
 
-
     if (!currentUser.active) {
       return next(
         new AppError(
@@ -170,7 +165,6 @@ exports.protect = (Model) =>
     res.locals.user = currentUser;
     return next();
   });
-
 
 exports.authenticate = (Model) =>
   catchAsync(async (req, res, next) => {
@@ -236,7 +230,6 @@ exports.authenticate = (Model) =>
     next();
   });
 
-
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -283,7 +276,6 @@ exports.forgotPassword = (Model, URL) =>
 
 exports.resetPassword = (Model) =>
   catchAsync(async (req, res, next) => {
-    
     const hashedToken = crypto
       .createHash("sha256")
       .update(req.params.token)
@@ -364,11 +356,16 @@ exports.HarddeleteOne = (Model) =>
       status: "success",
       message: "Document successfully deleted",
     });
-});
+  });
 
-exports.updateOne = (Model) =>
+exports.updateOne = (Model, afterUpdate) =>
   catchAsync(async (req, res, next) => {
-    const doc = await Model.findByIdAndUpdate(req.params.id, req.body, {
+    const data = { ...req.body };
+    if (req.files?.image?.length > 0) {
+      data.image = req.files.image[0].filename;
+    }
+
+    const doc = await Model.findByIdAndUpdate(req.params.id, data, {
       new: true,
       runValidators: true,
     });
@@ -377,23 +374,41 @@ exports.updateOne = (Model) =>
       return next(new AppError("No document found with that ID", 404));
     }
 
+    if (afterUpdate) {
+      await afterUpdate(doc, req, res);
+    }
+
     res.status(200).json({
       status: "success",
-      data: {
-        data: doc,
-      },
+      data: doc,
     });
   });
 
-exports.createOne = (Model) =>
+exports.createOne = (Model, afterCreate) =>
   catchAsync(async (req, res, next) => {
-    const doc = await Model.create(req.body);
+    // Handle image before saving if needed
+    const data = { ...req.body };
+    if (req.files?.image?.length > 0) {
+      data.image = req.files.image[0].filename;
+    }
+
+    if (data.geoCoordinates) {
+      try {
+        data.geoCoordinates = JSON.parse(data.geoCoordinates);
+      } catch (err) {
+        return next(new AppError("Invalid geoCoordinates format", 400));
+      }
+    }
+
+    const doc = await Model.create(data);
+
+    if (afterCreate) {
+      await afterCreate(doc, req, res);
+    }
 
     res.status(201).json({
       status: "success",
-      data: {
-        data: doc,
-      },
+      data: doc,
     });
   });
 
@@ -415,37 +430,73 @@ exports.getOne = (Model, popOptions) =>
     });
   });
 
-  exports.getOneQuery = (Model, popOptions) =>
-    catchAsync(async (req, res, next) => {
-      let query = Model.findById(req.query.id); 
-      if (popOptions) query = query.populate(popOptions);
-      const doc = await query;
+exports.getOneQuery = (Model, popOptions) =>
+  catchAsync(async (req, res, next) => {
+    let query = Model.findById(req.query.id);
+    if (popOptions) query = query.populate(popOptions);
+    const doc = await query;
 
-      if (!doc) {
-        return next(new AppError("No document found with that ID", 404));
-      }
+    if (!doc) {
+      return next(new AppError("No document found with that ID", 404));
+    }
 
-      res.status(200).json({
-        status: "success",
-        data: doc,
-      });
+    res.status(200).json({
+      status: "success",
+      data: doc,
+    });
   });
 
-exports.getAll = (Model, popOptions) =>
+// exports.getAll = (Model, popOptions) =>
+//   catchAsync(async (req, res, next) => {
+//     const features = new APIFeatures(Model.find(), req.query)
+//       .filter()
+//       .sort()
+//       .limitFields()
+//       .paginate();
+
+//     if (popOptions) features.query = features.query.populate(popOptions);
+//     const doc = await features.query;
+
+//     res.status(200).json({
+//       status: "success",
+//       results: doc.length,
+//       data: doc,
+//     });
+//   });
+
+exports.getAll = (Model, popOptions = {}, searchFields = []) =>
   catchAsync(async (req, res, next) => {
     const features = new APIFeatures(Model.find(), req.query)
       .filter()
+      .search(searchFields)
       .sort()
       .limitFields()
       .paginate();
 
-    if (popOptions) features.query = features.query.populate(popOptions);
-    const doc = await features.query;
+    // Apply population only if popOptions has keys
+    if (popOptions && Object.keys(popOptions).length > 0) {
+      features.query = features.query.populate(popOptions);
+    }
+
+    // Execute query with lean() for optimization
+    const docs = await features.query.lean();
+
+    // Get total count matching the filter and search criteria
+    const totalDocuments = await Model.countDocuments(
+      features.query.getFilter ? features.query.getFilter() : {}
+    );
+
+    const limit = req.query.limit * 1 || 100;
+    const page = req.query.page * 1 || 1;
+    const totalPages = Math.ceil(totalDocuments / limit);
 
     res.status(200).json({
       status: "success",
-      results: doc.length,
-      data: doc,
+      results: docs.length,
+      page,
+      totalPages,
+      totalDocuments,
+      data: docs,
     });
   });
 
@@ -454,7 +505,7 @@ exports.pagination = (Model, filterName, populateFields = []) =>
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const filter = req.query.filter || "";
-    
+
     const sortField = req.query.sortField || "createdAt";
     const sortOrder = req.query.sortOrder
       ? req.query.sortOrder.toLowerCase()
@@ -491,7 +542,7 @@ exports.pagination = (Model, filterName, populateFields = []) =>
         console.error("Error retrieving data:", err);
         res.status(500).json({ error: "An error occurred" });
       });
-});
+  });
 
 exports.toObjectId = (value) => {
   if (mongoose.Types.ObjectId.isValid(value)) {

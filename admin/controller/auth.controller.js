@@ -11,6 +11,7 @@ exports.Registration = catchAsync(async (req, res, next) => {
     password,
     passwordConfirm,
     roleName,
+    canEdit,
     dob,
     gender,
     phone,
@@ -47,6 +48,7 @@ exports.Registration = catchAsync(async (req, res, next) => {
     password,
     passwordConfirm,
     roleName,
+    canEdit,
     dob,
     gender,
     phone,
@@ -79,10 +81,10 @@ exports.updateAdmin = catchAsync(async (req, res, next) => {
   const {
     firstName,
     lastName,
-    email,
     password,
     passwordConfirm,
     roleName,
+    canEdit,
     dob,
     gender,
     phone,
@@ -117,8 +119,8 @@ exports.updateAdmin = catchAsync(async (req, res, next) => {
   const updateData = {
     firstName,
     lastName,
-    email,
     roleName,
+    canEdit,
     dob,
     gender,
     phone,
@@ -262,7 +264,7 @@ exports.registerEmployee = catchAsync(async (req, res, next) => {
     district,
     block,
     department,
-    reportingOfficer
+    reportingOfficer,
   } = req.body;
 
   // Validate roleName is Employee
@@ -365,10 +367,14 @@ exports.getMe = (req, res, next) => {
 
 exports.protect = helper.protect(Admin);
 exports.authenticate = helper.authenticate(Admin);
-exports.getAllUser = helper.getAll(Admin, {
-  path: "createdBy",
-  select: "firstName email roleName",
-});
+exports.getAllUser = helper.getAll(
+  Admin,
+  {
+    path: "createdBy",
+    select: "firstName email roleName",
+  },
+  ["firstName", "email"]
+);
 exports.getDataById = helper.getOne(Admin, "");
 exports.forgotPassword = helper.forgotPassword(Admin, "");
 exports.resetPassword = helper.resetPassword(Admin);

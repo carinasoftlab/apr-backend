@@ -11,6 +11,9 @@ process.on('uncaughtException', err => {
 dotenv.config({ path: './.env' });
 const app = require('./app');
 
+const socket = require("./socket");
+
+
 const DB = process.env.DATABASE.replace(
   '<PASSWORD>',
   process.env.DATABASE_PASSWORD
@@ -31,6 +34,9 @@ const port = process.env.PORT || 8087;
 const server = app.listen(port, () => {
   console.log(`App running on port ${port}...`);
 });
+
+const io = socket.init(server);
+
 
 process.on('unhandledRejection', err => {
   console.log('UNHANDLED REJECTION! 💥 Shutting down...');
