@@ -7,6 +7,7 @@ exports.createNotification = async ({
   resourceType,
   resourceId,
   user,
+  image,
 }) => {
   return await Notification.create({
     title,
@@ -14,5 +15,6 @@ exports.createNotification = async ({
     resourceType,
     resourceId,
     user,
+    image,
   });
 };

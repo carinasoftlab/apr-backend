@@ -53,14 +53,18 @@ exports.createDistrict = factory.createOne(District, async (district, req, res) 
   const io = getIO();
   const sockets = getUsersByRoles(["superAdmin", "admin"]);
 
+
   sockets.forEach((socketId) => {
     io.to(socketId).emit("notification", {
       title: notification.title,
       message: notification.message,
       resourceType: notification.resourceType,
       resourceId: notification.resourceId,
+      createdAt: notification.createdAt.toISOString(),
+      user: req.user,
     });
   });
+
 });
 
 exports.updateDistrict = factory.updateOne(District, async (district, req, res) => {
@@ -81,6 +85,8 @@ exports.updateDistrict = factory.updateOne(District, async (district, req, res) 
       message: notification.message,
       resourceType: notification.resourceType,
       resourceId: notification.resourceId,
+      createdAt: notification.createdAt.toISOString(),
+      user: req.user,
     });
   });
 });
